@@ -1,0 +1,1674 @@
+<!DOCTYPE HTML>
+<html>
+<title>BATTLESPLOOSH</title>
+  <head>
+    <style>
+
+      body {
+        margin: 0px;
+        padding: 0px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="myCanvas" width="800" height="800"></canvas>
+	
+	<!-- AUTOPLAY MUSIC GOES HERE -->
+	<audio controls autoplay loop>
+    <source src="swcantina.mp3" type="audio/mpeg">
+	</audio>
+	
+    <script>
+
+	//variables for sound
+	var splash = new Audio("sploosh.wav");
+	var explosion = new Audio("kerboom.wav");
+
+	//create boardstate 2 dimensional array
+	//create initial array
+	var boardState = new Array(10);
+	//create the second dimension for each portion of the array
+	for (i=0; i<10; i++)
+	{
+	boardState[i] = new Array(10);
+	}
+
+	// scoreboard array
+	var topTen = new Array (10);
+	for (i=0; i<10; i++)
+		{
+		topTen[i] = new Array (2);
+		}
+
+	//Set all boardstate data equal to 0
+	//All columns
+	for (i=0; i<10; i++)
+	{
+		//All rows
+		for (j=0; j<10; j++)
+		{
+		//Set current position equal to 0
+		boardState[i][j] = 0;
+		}
+	}
+
+	// Default Turn Counter
+	var turnCounter = 90;
+
+	// Difficult
+	var difficulty = "easy";
+	
+	//boat position variable
+	var carPosX = 0;
+	var carPosY = 0;
+	var batPosX = 0;
+	var batPosY = 0;
+	var subPosX = 0;
+	var subPosY = 0;
+	var desPosX = 0;
+	var desPosY = 0;
+	var scoutPosX = 0;
+	var scoutPosY = 0;
+
+	// Obtains the old scores.
+	// Score the top score. This should update frequently.
+	var globalTopScore = 0;
+
+
+	//creates the variables in order to draw and create messages on the canvas.
+	var canvas = document.getElementById('myCanvas');
+	var context = canvas.getContext('2d');
+	
+	//draw the board on the canvas	
+	drawBoard(canvas , context);
+	
+	// draw the scoreboard on the canvas:
+	drawScoreBoard(canvas , context);
+	
+
+	//create variable for image space
+	var imageObj = new Image();
+	//load image onto canvas
+       imageObj.onload = function() {
+	//change global opacity to 50%
+	context.globalAlpha = 0.5;
+	//place image at grid x,y
+        context.drawImage(imageObj, 0, 0);
+	//change global opacity back to normal
+	context.globalAlpha = 1;		
+	};	
+	imageObj.src = 'ocean.jpg';
+
+	//Call boat location functions and set values on the array
+	carPos();
+	batPos();
+	subPos();
+	desPos();
+	scoutPos();
+	
+
+	//boat status
+	var car = false;
+	var bat = false;
+	var sub = false;
+	var scout = false;
+	var dest = false;
+	
+	// Get the user's name.
+////// FIX LATER: If no name is given, have it reload the page somehow. (I can't figure it out.)
+	var userName = prompt("YARRRR TELL US YER NAME, YE SCABBALLY KNAVE!");
+	// If userName has no input...
+	if(userName === "")
+		{
+		userName = "Lazy";
+		}
+	// Protection against long names to keep the scoreboard from displaying weird.
+//// PROBABLY BETTER TO REPROMPT, BUT THIS IS A QUICKFIX.	
+	if(userName.length >= 12)
+		{
+		userName = "TOOLONGNAME";
+		}
+
+	// Obtain the difficulty.
+////// MAKE INTO BUTTONS LATER SO IT'S EASIER AND LESS ERROR PRONE.
+	var difficultyPrompt = prompt("WHAT WOULD YA LIKE YER DIFFICULTY TO BE? EASY, MEDIUM OR HARD?");
+	// Should set difficultyPrompt to a lower case, making if statement comparisions easy regardless of case.
+	difficultyPrompt = difficultyPrompt.toLowerCase();
+	
+	// Difficulty controller.
+////// Make into buttons that the user can choose later on.
+
+	// If none of these are selected, the default is easy. So it's protected.
+	// For easy.
+	if(difficultyPrompt === "easy")
+		{
+		// Set the difficulty.
+		difficulty = "easy";
+		// Set the turncounter accordingly.
+		turnCounter = 70;
+		}
+	// For medium.
+	if(difficultyPrompt === "medium")
+		{
+		// Set the difficulty.
+		difficulty = "medium";
+		// Set the turncounter accordingly.
+		turnCounter = 60;
+		}
+	// For hard.
+	if(difficultyPrompt === "hard")
+		{
+		// Set the difficulty.
+		difficulty = "hard";
+		// Set the turncounter accordingly.
+		turnCounter = 50;
+		}
+
+
+
+
+
+
+
+/********** Dave and Sushil's code with minor alteration's******/
+
+	/*
+		writeMessage:
+			writes a message in black text to a spot below the tic-tac-toe board
+			note: clears out previous text		
+		
+		args:
+			canvas: which canvas to draw on (should always be: canvas)
+			message: a string which will be drawn in canvas
+	*/
+	function writeMessage(canvas, message) {
+        context.clearRect(550, 600, 800, 800);
+        context.font = '18pt Impact';
+        context.fillStyle = 'black';
+        context.fillText(message, 10, 575);
+	}
+
+	function finalCountDown(canvas, message2)
+	{
+	context.clearRect(0, 500, 800, 800);
+	context.font = '18pt Impact';
+	context.fillStyle = 'red';
+	context.fillText (message2, 10, 525);
+	}
+
+	/*
+		getMousePos:
+			returns the position of the mouse when it was clicked
+	*/
+	function getMousePos(canvas, evt) {
+        var rect = canvas.getBoundingClientRect();
+        return {
+			x: evt.clientX - rect.left,
+			y: evt.clientY - rect.top
+		};
+	}
+	/* 
+		addEventListener:
+			this function runs whenver someone clicks the mouse
+		the x-coordinate of the mouse click is stored in mousePos.x
+		the y-coordinate of the mouse click is stored in mousePos.y
+		a message describing where the mouse was clicked is painted on the canvas
+	*/
+	canvas.addEventListener('mousedown', function(evt) {
+		/******************************************/
+	//finds mouse position 
+   	var mousePos = getMousePos(canvas, evt);
+		//changes positions to grid numbers
+		mousePos.x = Math.floor(mousePos.x/50);
+		mousePos.y = Math.floor(mousePos.y/50);
+
+	//set grid number to letter
+	var gridLetter;
+
+//Checks which column numbers are printed in
+	//Checks first column and sets letter
+	if (mousePos.x == 0)
+		gridLetter = 'A';
+	//Checks second column and sets letter
+	else if (mousePos.x == 1)
+		gridLetter = 'B';
+	//Checks third column and sets letter
+	else if (mousePos.x == 2)
+		gridLetter = 'C';
+	//Checks fourth column and sets letter
+	else if (mousePos.x == 3)
+		gridLetter = 'D';
+	//Check fifth column and sets letter
+	else if (mousePos.x == 4)
+		gridLetter = 'E';
+	//Checks sixth column and sets letter
+	else if (mousePos.x == 5)
+		gridLetter = 'F';
+	//Checks seventh column and sets letter
+	else if (mousePos.x == 6)
+		gridLetter = 'G';
+	//Checks eigth column and sets letter
+	else if (mousePos.x == 7)
+		gridLetter = 'H';
+	//Checks ninth column and sets letter
+	else if (mousePos.x == 8)
+		gridLetter = 'I';
+	//Checks tenth column and sets letter
+	else if (mousePos.x == 9)
+		gridLetter = 'J';
+
+	
+
+//checks to see if click occurs within grid
+if (mousePos.x < 10 && mousePos.y < 10)
+{
+	//if in grid print this message
+	var message = 'Grid Position: ' + gridLetter + ' , ' + mousePos.y;
+}
+//outside of grid
+else
+{
+	//if outside of grid print this message
+	var message = 'Please Click Within The Playing Field!';
+}
+
+
+
+
+/***************************************************************/
+
+//checks to see if current mouse position is empty
+if (boardState[mousePos.x][mousePos.y] == 0)
+{
+//if empty draws an O at current location
+drawO (mousePos.x , mousePos.y);
+//play splash sound
+splash.play();
+//if empty changes current locations state
+boardState[mousePos.x][mousePos.y] = -0.000000000001;
+//decrement turn
+turnCounter --;
+//update score
+globalTopScore = calcScore(turnCounter, difficulty);
+//place the score
+placeScore(canvas, context, globalTopScore, userName);
+//check for loser
+didYouLose();
+}
+
+//checks to see if current mouse position has a carrier
+else if (boardState[mousePos.x][mousePos.y] == 2)
+{
+//if there is a boat draws an X at the current location
+drawX (mousePos.x , mousePos.y);
+drawExplosion (mousePos.x, mousePos.y);
+//play explosion sound
+explosion.play();
+//if there is a boat changes current locations state
+boardState[mousePos.x][mousePos.y] = 500;
+// display carrier at that position
+
+//check to see if carrier has been sank
+carrierDest(car);
+//decrement turn
+turnCounter --;
+//update score
+globalTopScore = calcScore(turnCounter, difficulty);
+//place the score
+
+//check for a winner
+didYouWin();
+//check for loser
+didYouLose();
+}
+
+//checks to see if current mouse position has a battleship
+else if (boardState[mousePos.x][mousePos.y] == 3)
+{
+//if there is a boat draws an X at the current location
+drawX (mousePos.x , mousePos.y);
+//play explosion sound
+explosion.play();
+drawExplosion (mousePos.x, mousePos.y);
+//if there is a boat changes current locations state
+boardState[mousePos.x][mousePos.y] = 5000;
+//check to see if battleship has been sank
+battleShipDest(bat);
+//decrement turn
+turnCounter --;
+//update score
+globalTopScore = calcScore(turnCounter, difficulty);
+//place the score
+placeScore(canvas, context, globalTopScore, userName);
+//check for a winner
+didYouWin();
+//check for loser
+didYouLose();
+}
+
+//checks to see if current mouse position has a destroyer
+else if (boardState[mousePos.x][mousePos.y] == 4)
+{
+//if there is a boat draws an X at the current location
+drawX (mousePos.x , mousePos.y);
+//play explosion sound
+explosion.play();
+drawExplosion (mousePos.x, mousePos.y);
+//if there is a boat changes current locations state
+boardState[mousePos.x][mousePos.y] = 50000;
+//check to see if destroyer has been sank
+destroyerDest();
+//decrement turn
+turnCounter --;
+//update score
+globalTopScore = calcScore(turnCounter, difficulty);
+//place the score
+placeScore(canvas, context, globalTopScore, userName);
+//check for a winner
+didYouWin(dest);
+//check for loser
+didYouLose();
+}
+
+//checks to see if current mouse position has a submarine
+else if (boardState[mousePos.x][mousePos.y] == 5)
+{
+//if there is a boat draws an X at the current location
+drawX (mousePos.x , mousePos.y);
+//play explosion sound
+explosion.play();
+drawExplosion (mousePos.x, mousePos.y);
+//if there is a boat changes current locations state
+boardState[mousePos.x][mousePos.y] = 500000;
+//check to see if the submarine has been sank
+submarineDest(sub);
+//decrement turn
+turnCounter --;
+//update score
+globalTopScore = calcScore(turnCounter, difficulty);
+//place the score
+placeScore(canvas, context, globalTopScore, userName);
+//check for a winner
+didYouWin();
+//check for loser
+didYouLose();
+}
+
+//checks to see if current mouse position has a scout
+else if (boardState[mousePos.x][mousePos.y] == 6)
+{
+//if there is a boat draws an X at the current location
+drawX (mousePos.x , mousePos.y);
+//play explosion sound
+explosion.play();
+drawExplosion (mousePos.x, mousePos.y);
+//if there is a boat changes current locations state
+boardState[mousePos.x][mousePos.y] = 5000000;
+//check to see if scout has been sank
+scoutDest(scout);
+//decrement turn
+turnCounter --;
+//update score
+globalTopScore = calcScore(turnCounter, difficulty);
+//place the score
+placeScore(canvas, context, globalTopScore, userName);
+//check for a winner
+didYouWin();
+//check for loser
+didYouLose();
+}
+
+//checks if there is already a move made at the current position
+else if (boardState[mousePos.x][mousePos.y] < 0 || boardState[mousePos.x][mousePos.y] > 6) 
+{
+//opens dialog box telling you that you suck
+alert ("You Can't Make A Move Where You Have Already Played, Loser!");
+}
+
+	//prints the current turn counter
+	var message2 = 'Turns Remaining : ' + turnCounter;
+	finalCountDown(canvas, message2);
+
+		//prints given message
+		writeMessage(canvas, message);
+
+	}, false);
+/*********Boat positioning functions*******************/
+/************Static Boat Positions*********************/
+function carPos()
+{
+// carrier static position
+	/*for (i=0; i<5; i++)
+	{
+	boardState[0][i]=2;
+	}*/
+
+
+var boatSet = false;
+//repeats the loop until the function finds an open position for the boat
+while(boatSet != true)
+{
+//set variables
+var orient = 0;
+var xAxis0 = 0;
+var yAxis0 = 0;
+//generates a random number between 1 and 2
+orient = Math.floor((Math.random()*2)+1);
+//if 1 then vertical if 2 then horizontal orientation for the boat
+if(orient == 1)
+	{
+	//allows the start position to be between 0 and 6 rows
+	xAxis0 = Math.floor((Math.random()*6)+0);
+	//allows the column position to be in any column
+	yAxis0 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis0][yAxis0] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis0+1][yAxis0] == 0)
+			{
+			//checks the third position
+			if (boardState[xAxis0+2][yAxis0] == 0)
+				{
+				//checks the fourth position
+				if (boardState[xAxis0+3][yAxis0] == 0)
+					{
+					//checks the fifth position
+					if (boardState[xAxis0+4][yAxis0] == 0)
+						{
+						//changes the values of the board to set the carrier
+						for (i=0; i<5; i++)
+							{
+							boardState[xAxis0+i][yAxis0] = 2;
+							}//end of for loop
+							carPosX = xAxis0;
+							carPosY = yAxis0;
+						//tell the function that the position is set
+						boatSet = true;
+						}//end of fifth position statement
+					}//end of fourth position statement
+				}//end of third position statement
+			}//end of second position statement
+		}//end of first position statement
+	}//end of the vertical positioning if statement
+else if (orient == 2)
+	{
+	//allows the start position to be between 0 and 6 columns
+	yAxis0 = Math.floor((Math.random()*6)+0);
+	//allows the drop position to be in any row
+	xAxis0 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis0][yAxis0] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis0][yAxis0+1] == 0)
+			{
+			//checks the third position
+			if (boardState[xAxis0][yAxis0+2] == 0)
+				{
+				//checks the fourth position
+				if (boardState[xAxis0][yAxis0+3] == 0)
+					{
+					//checks the fifth position
+					if (boardState[xAxis0][yAxis0+4] == 0)
+						{
+						//changes the values of the board to set the carrier
+						for (i=0; i<5; i++)
+							{
+							boardState[xAxis0][yAxis0+i] = 2;
+							}
+						carPosX = xAxis0;
+						carPosY = yAxis0;
+						//tell the function that the position is set
+						boatSet = true;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+	
+}//end of function
+
+function batPos()
+{
+//battleship static position
+	/*for (i=0; i<4; i++)
+	{
+	boardState[1][i]=3;
+	}*/
+var boatSet = false;
+//repeats the loop until the function finds an open position for the boat
+while(boatSet != true)
+{
+//set variables
+var orient = 0;
+var xAxis1 = 0;
+var yAxis1 = 0;
+//generates a random number between 1 and 2
+orient = Math.floor((Math.random()*2)+1);
+//if 1 then vertical if 2 then horizontal orientation for the boat
+if(orient == 1)
+	{
+	//allows the start position to be between 0 and 6 rows
+	xAxis1 = Math.floor((Math.random()*7)+0);
+	//allows the column position to be in any column
+	yAxis1 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis1][yAxis1] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis1+1][yAxis1] == 0)
+			{
+			//checks the third position
+			if (boardState[xAxis1+2][yAxis1] == 0)
+				{
+				//checks the fourth position
+				if (boardState[xAxis1+3][yAxis1] == 0)
+					{
+					//changes the values of the board to set the battleship
+					for (i=0; i<4; i++)
+						{
+						boardState[xAxis1+i][yAxis1] = 3;
+						}//end of for loop
+					batPosX = xAxis1;
+				 	batPosY = yAxis1;
+					//tell the function that the position is set
+					boatSet = true;
+					}//end of fourth position statement
+				}//end of third position statement
+			}//end of second position statement
+		}//end of first position statement
+	}//end of the vertical positioning if statement
+else if (orient == 2)
+	{
+	//allows the start position to be between 0 and 6 columns
+	yAxis1 = Math.floor((Math.random()*7)+0);
+	//allows the drop position to be in any row
+	xAxis1 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis1][yAxis1] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis1][yAxis1+1] == 0)
+			{
+			//checks the third position
+			if (boardState[xAxis1][yAxis1+2] == 0)
+				{
+				//checks the fourth position
+				if (boardState[xAxis1][yAxis1+3] == 0)
+					{
+					//changes the values of the board to set the battleship
+					for (i=0; i<4; i++)
+						{
+						boardState[xAxis1][yAxis1+i] = 3;
+						}
+					batPosX = xAxis1;
+					batPosY = yAxis1;
+					//tell the function that the position is set
+					boatSet = true;
+					}
+				}
+			}
+		}
+	}
+}
+	
+}//end of function
+
+
+function desPos()
+{
+//destroyer static position
+	/*for (i=0; i<3; i++)
+	{
+	boardState[2][i]=4;
+	}*/
+var boatSet = false;
+//repeats the loop until the function finds an open position for the boat
+while(boatSet != true)
+{
+//set variables
+var orient = 0;
+var xAxis2 = 0;
+var yAxis2 = 0;
+//generates a random number between 1 and 2
+orient = Math.floor((Math.random()*2)+1);
+//if 1 then vertical if 2 then horizontal orientation for the boat
+if(orient == 1)
+	{
+	//allows the start position to be between 0 and 6 rows
+	xAxis2 = Math.floor((Math.random()*8)+0);
+	//allows the column position to be in any column
+	yAxis2 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis2][yAxis2] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis2+1][yAxis2] == 0)
+			{
+			//checks the third position
+			if (boardState[xAxis2+2][yAxis2] == 0)
+				{
+				//changes the values of the board to set the destroyer
+				for (i=0; i<3; i++)
+					{
+					boardState[xAxis2+i][yAxis2] = 4;
+					}//end of for loop
+				desPosX = xAxis2;
+				desPosY = yAxis2;
+				//tell the function that the position is set
+				boatSet = true;
+				}//end of third position statement
+			}//end of second position statement
+		}//end of first position statement
+	}//end of the vertical positioning if statement
+else if (orient == 2)
+	{
+	//allows the start position to be between 0 and 6 columns
+	yAxis2 = Math.floor((Math.random()*8)+0);
+	//allows the drop position to be in any row
+	xAxis2 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis2][yAxis2] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis2][yAxis2+1] == 0)
+			{
+			//checks the third position
+			if (boardState[xAxis2][yAxis2+2] == 0)
+				{
+				//checks the fourth position
+				if (boardState[xAxis2][yAxis2+3] == 0)
+					{
+					//changes the values of the board to set the destroyer
+					for (i=0; i<3; i++)
+						{
+						boardState[xAxis2][yAxis2+i] = 4;
+						}
+					desPosX = xAxis2;
+					desPosY = yAxis2;
+					//tell the function that the position is set
+					boatSet = true;
+					}
+				}
+			}
+		}
+	}
+
+}
+
+}
+
+function subPos()
+{
+//submarine static position
+	/*for (i=0; i<3; i++)
+	{
+	boardState[3][i] = 5;
+	}*/
+var boatSet = false;
+//repeats the loop until the function finds an open position for the boat
+while(boatSet != true)
+{
+//set variables
+var orient = 0;
+var xAxis3 = 0;
+var yAxis3 = 0;
+//generates a random number between 1 and 2
+orient = Math.floor((Math.random()*2)+1);
+//if 1 then vertical if 2 then horizontal orientation for the boat
+if(orient == 1)
+	{
+	//allows the start position to be between 0 and 6 rows
+	xAxis3 = Math.floor((Math.random()*8)+0);
+	//allows the column position to be in any column
+	yAxis3 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis3][yAxis3] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis3+1][yAxis3] == 0)
+			{
+			//checks the third position
+			if (boardState[xAxis3+2][yAxis3] == 0)
+				{
+				//changes the values of the board to set the submarine
+				for (i=0; i<3; i++)
+					{
+					boardState[xAxis3+i][yAxis3] = 5;
+					}//end of for loop
+				subPosX = xAxis3;
+				subPosY = yAxis3;
+				//tell the function that the position is set
+				boatSet = true;
+				}//end of third position statement
+			}//end of second position statement
+		}//end of first position statement
+	}//end of the vertical positioning if statement
+else if (orient == 2)
+	{
+	//allows the start position to be between 0 and 6 columns
+	yAxis3 = Math.floor((Math.random()*8)+0);
+	//allows the drop position to be in any row
+	xAxis3 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis3][yAxis3] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis3][yAxis3+1] == 0)
+			{
+			//checks the third position
+			if (boardState[xAxis3][yAxis3+2] == 0)
+				{
+				//checks the fourth position
+				if (boardState[xAxis3][yAxis3+3] == 0)
+					{
+					//changes the values of the board to set the submarine
+					for (i=0; i<3; i++)
+						{
+						boardState[xAxis3][yAxis3+i] = 5;
+						}
+					subPosX = xAxis3;
+					subPosY = yAxis3;
+					//tell the function that the position is set
+					boatSet = true;
+					}
+				}
+			}
+		}
+	}
+
+}
+
+}
+
+function scoutPos()
+{
+//scout static position
+	/*for (i=0; i<2; i++)
+	{
+	boardState[4][i] = 6;
+	}*/
+var boatSet = false;
+//repeats the loop until the function finds an open position for the boat
+while(boatSet != true)
+{
+//set variables
+var orient = 0;
+var xAxis4 = 0;
+var yAxis4 = 0;
+//generates a random number between 1 and 2
+orient = Math.floor((Math.random()*2)+1);
+//if 1 then vertical if 2 then horizontal orientation for the boat
+if(orient == 1)
+	{
+	//allows the start position to be between 0 and 6 rows
+	xAxis4 = Math.floor((Math.random()*9)+0);
+	//allows the column position to be in any column
+	yAxis4 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis4][yAxis4] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis4+1][yAxis4] == 0)
+			{
+			//changes the values of the board to set the scout
+			for (i=0; i<2; i++)
+				{
+				boardState[xAxis4+i][yAxis4] = 6;
+				}//end of for loop
+			scoutPosX = xAxis4;
+			scoutPosY = yAxis4;
+			//tell the function that the position is set
+			boatSet = true;
+			}//end of second position statement
+		}//end of first position statement
+	}//end of the vertical positioning if statement
+else if (orient == 2)
+	{
+	//allows the start position to be between 0 and 6 columns
+	yAxis4 = Math.floor((Math.random()*9)+0);
+	//allows the drop position to be in any row
+	xAxis4 = Math.floor((Math.random()*10)+0);
+	
+	//check first point to see if there is a point existing there
+	if (boardState[xAxis4][yAxis4] == 0)
+		{
+		//checks the second positon
+		if (boardState[xAxis4][yAxis4+1] == 0)
+			{
+			//checks the third position
+			if (boardState[xAxis4][yAxis4+2] == 0)
+				{
+				
+				//changes the values of the board to set the scout
+				for (i=0; i<2; i++)
+					{
+					boardState[xAxis4][yAxis4+i] = 6;
+					}
+				scoutPosX = xAxis4;
+				scoutPosY = yAxis4;
+				//tell the function that the position is set
+				boatSet = true;
+				}
+			}
+		}
+	}
+
+}
+
+
+}
+/******************************************************/
+
+/**********************Winning Function****************/
+	function didYouWin()
+	{
+	//reset the total everytime it checks for a win
+	var total = 0;
+	//total the entirty of the board
+	for (i=0; i<10; i++)
+		{
+		for  (j=0; j<10; j++)
+			{
+			//finds the total by adding each piece of the array one piece at a time
+			total = total+boardState[i][j];
+			}
+		}
+	//used massive numbers so the small numbers obtained by misses do not have much of an effect on the overall total
+	if (total >= 11672400)
+	{ 
+	//pop up window telling the player he/she won	
+	alert ("GOOD JARB ME HEARTY, YE SANK THE ENEMY FLEET GARRRRRRR!!!!");
+	//creates a pop-up box that asks if you would like to play 		a new game
+	var newgame = confirm ("WOULD YE LIKE TO ATTEMPT TO PLUNDER YE ENEMIES AGAIN?");
+	if (newgame == true)
+	{
+	// Set these values to null.
+	noNullNames();
+	// save the score
+	saveScore(globalTopScore, userName);
+	//sorts the score
+	sortScores();
+	//reloads page
+	location.reload();
+	}
+//end of then statement
+	else
+	{
+	//closes current window
+	close();
+	}//end of else statement	
+	}//end of confirmation if statement
+	}//end of did you win function/
+/***********************Losing Function***************/
+	function didYouLose()
+	{
+	//checks if the player is out of turns
+	if (turnCounter == 0)
+	{
+		//makes a pop up box that informs the player that they lost
+	alert ("IT'S BACK TO THAR BRIG WITH YAR! Also, you kinda suck at this game. Just saying.");
+	//creates a pop-up box that asks if the player wants to play a new game
+	var newgame = confirm ("WOULD YE LIKE TO ATTEMPT TO PLUNDER YE ENEMIES AGAIN?");
+	if (newgame == true)
+	{
+	//reloads page
+	location.reload();
+	}//end of then statement
+	else
+	{
+	//closes current window
+	close();
+	}//end of else statement
+	}//end of if statement
+	}//end of did you lose function
+
+/*****************************************************/
+
+
+
+/*****************Draw Symbols************************/
+	//draw X
+	function drawX(xpos , ypos)
+	{
+	//change x value to draw at center of grids pixel location
+	xpos = xpos*50+25;
+	//change y value to draw at center of grids pixel location
+	ypos = ypos*50+25;
+	//draw the bottom left of X
+	context.beginPath();
+	context.moveTo(xpos,ypos);
+	context.lineTo(xpos-20, ypos-20);
+	context.stroke();
+	//draw the bottom right of X
+	context.beginPath();
+	context.moveTo(xpos, ypos);
+	context.lineTo(xpos+20, ypos-20);
+	context.stroke()
+	//draw the top left of X
+	context.beginPath();
+	context.moveTo(xpos, ypos);
+	context.lineTo(xpos-20, ypos+20);
+	context.stroke();
+	//draw the bottom right of X
+	context.beginPath();
+	context.moveTo(xpos, ypos);
+	context.lineTo(xpos+20, ypos+20);
+	context.stroke();
+	}
+
+
+	//draw O
+	function drawO (xpos , ypos)
+	{
+	//change x value to draw at center of grids pixel location
+	xpos = xpos*50+25
+	//change y value to draw at center of grids pixel location
+	ypos = ypos*50+25
+	//draw O at xpos and ypos on grid with radius of 20 pixels
+	context.beginPath();
+	context.arc (xpos, ypos, 20, 0, 2*Math.PI);
+	context.stroke();
+	}
+	
+	// draw Explosion
+	function drawExplosion (xpos, ypos)
+	{
+	
+	//create variable for image space
+	var imageObj = new Image();
+	//load image onto canvas
+       imageObj.onload = function() {
+	//change global opacity to 50%
+	context.globalAlpha = 0.5;
+	//place image at grid x,y
+        context.drawImage(imageObj, xpos*50, ypos*50);
+	//change global opacity back to normal
+	context.globalAlpha = 1;		
+	};	
+	imageObj.src = 'explosion.png';
+	
+	
+	}
+/***************************************************/
+	
+	//draws the grid
+	function drawBoard(canvas, context)
+	{
+	for(i=0; i<11; i++)
+		{
+		//Horizontal lines
+		context.beginPath();
+		//line color
+		context.strokeStyle = '#000000';
+		//line thickness
+		context.lineWidth = 3;
+		//line start position
+		context.moveTo(0 ,(i*50));
+		//line end positiion
+		context.lineTo(500 ,(i*50));
+		//draw
+		context.stroke();
+
+		//Vertical Lines
+		context.beginPath();
+		//line color
+		context.strokeStyle = '#000000';
+		//line thickness
+		context.lineWidth = 3;
+		//line start position
+		context.moveTo(i*50 ,0);
+		//line end position
+		context.lineTo(i*50 ,500);
+		//draw
+		context.stroke();
+		}
+	}
+
+/********************Boat Destruction Checks***********/
+//Carrier Destruction
+function carrierDest(car)
+{
+for (i=0; i<6; i++)
+	{
+	for(j=0; j<10; j++)
+		{
+		if (boardState[i][j] + boardState[i+1][j] + boardState[i+2][j] + boardState[i+3][j] + boardState[i+4][j] == 2500)
+			{
+			
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       		imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        	context.drawImage(imageObj, (carPosX*50), (carPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'carrier-horizontalsmall.png';
+			alert ("YE SUNK THE AIRCRAFT CARRIER!");
+			return true;
+			}
+		else if (boardState[j][i] + boardState[j][i+1] + boardState[j][i+2] + boardState[j][i+3] + boardState[j][i+4] == 2500)
+			{
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       		imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        	context.drawImage(imageObj, (carPosX*50), (carPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'carrier-verticalsmall.png';
+			alert ("YE SUNK THE AIRCRAFT CARRIER!");
+			return true;
+			}
+		}
+	}
+}
+//Battleship Destruction
+function battleShipDest(bat)
+{
+for (i=0; i<7; i++)
+	{
+	for(j=0; j<10; j++)
+		{
+		if (boardState[i][j] + boardState[i+1][j] + boardState[i+2][j] + boardState[i+3][j] == 20000)
+			{
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       		imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        	context.drawImage(imageObj, (batPosX*50), (batPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'battleship-hor-small.png';
+			alert ("YE SUNK THE BATTLESHIP!");
+			return true;
+			}
+		else if (boardState[j][i] + boardState[j][i+1] + boardState[j][i+2] + boardState[j][i+3] == 20000)
+			{
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       		imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        	context.drawImage(imageObj, (batPosX*50), (batPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'battleship-vert.png';
+			alert ("YE SUNK THE BATTLESHIP!");
+			return true;
+			}
+		}
+	}
+}
+
+//Destroyer Destruction
+function destroyerDest(dest)
+{
+for (i=0; i<8; i++)
+	{
+	for(j=0; j<10; j++)
+		{
+		if (boardState[i][j] + boardState[i+1][j] + boardState[i+2][j] == 150000)
+			{
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       		imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        	context.drawImage(imageObj, (desPosX*50), (desPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'destroyer-horizontalsmall.png';
+			alert ("YE SUNK THE DESTROYER!");
+			return true;
+			}
+		else if (boardState[j][i] + boardState[j][i+1] + boardState[j][i+2] == 150000)
+			{
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       		imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        	context.drawImage(imageObj, (desPosX*50), (desPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'destroyer-verticalsmall.png';
+			alert ("YE SUNK THE DESTROYER!");
+			return true;
+			}
+		}
+	}
+}
+
+//Submarine Destruction
+function submarineDest(sub)
+{
+for (i=0; i<8; i++)
+	{
+	for(j=0; j<10; j++)
+		{
+		if (boardState[i][j] + boardState[i+1][j] + boardState[i+2][j] == 1500000)
+			{
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       		imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        	context.drawImage(imageObj, (subPosX*50), (subPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'subhor.png';
+			alert ("YE SUNK THE SUBMARINE!");
+			return true;
+			}
+		else if (boardState[j][i] + boardState[j][i+1] + boardState[j][i+2] == 1500000)
+			{
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       		imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        	context.drawImage(imageObj, (subPosX*50), (subPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'subver.png';
+			alert ("YE SUNK THE SUBMARINE!");
+			return true;
+			}
+		}
+	}
+}
+
+//Scout Destruction
+function scoutDest(scout)
+{
+for (i=0; i<9; i++)
+	{
+	for(j=0; j<10; j++)
+		{
+		if (boardState[i][j] + boardState[i+1][j] == 10000000)
+			{
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       		imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        	context.drawImage(imageObj, (scoutPosX*50), (scoutPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'ptboat-horizontalsmall.png';
+			alert ("YE SUNK THE SCOUTING BOAT!");
+			return true;
+			}
+		else if (boardState[j][i] + boardState[j][i+1] == 10000000)
+			{
+			//create variable for image space
+			var imageObj = new Image();
+			//load image onto canvas
+       			imageObj.onload = function() {
+			//change global opacity to 50%
+			context.globalAlpha = 1;
+			//place image at grid x,y
+        		context.drawImage(imageObj, (scoutPosX*50), (scoutPosY*50));
+			//change global opacity back to normal
+			context.globalAlpha = 1;		
+			};	
+			imageObj.src = 'ptboat-verticalsmall.png';
+			alert ("YE SUNK THE SCOUTING BOAT!");
+			return true;
+			}
+		}
+	}
+}
+// draw the text of the scoreboard on the canvas
+/********************Scoreboard******************************/
+
+/******************Calculate Score***************************/
+	// How does this shit work?
+
+function calcScore(turnCounter, difficulty)
+	{	
+		var score = -1;
+
+		// This sets multipliers based on difficulty.
+		// Set to one quarter, one half and all of the points. This is to keep it fair.
+		if(difficulty === "easy")
+			{
+			diffMulti = 25;
+			}
+		if(difficulty === "medium")
+			{
+			diffMulti = 50;
+			}
+		if(difficulty === "hard")
+			{
+			diffMulti = 100;
+			}
+
+		// First, calculate the score.
+		// Score is the amount of turns times the difficulty, simple.
+		score = turnCounter*diffMulti;
+		// Round the number so that the output lacks a decimal place beyond 2 digits.
+		score = Math.round(score);
+		console.log("Alert: score is %f", score);
+		// Update the global top score.
+		return score;
+	}
+
+
+/*****************Display Calculated Score********************/
+	// That's cool. But obviously something needs to put up the score.
+	// Make a scoreboard. Start at the 500 position, work way down.
+				// Take the username inputed at the start with the score calculated here.
+					// The variable happens to be userName.
+					
+				// Place it in a table displayed to the left of the column.
+					// Render the table.
+function drawScoreBoard(canvas, context)
+	{
+	for(i=0; i<2; i++)
+		{
+		//Horizontal lines
+		context.beginPath();
+		//line color
+		context.strokeStyle = '#000000';
+		//line thickness
+		context.lineWidth = 1;
+		//line start position
+		context.moveTo(500 ,(i*500));
+		//line end positiion
+		context.lineTo(800 ,(i*500));
+		//draw
+		context.stroke();
+
+		//Vertical Lines
+		context.beginPath();
+		//line color
+		context.strokeStyle = '#000000';
+		//line thickness
+		context.lineWidth = 1;
+		//line start position
+		context.moveTo(500+(300*i) ,0);
+		//line end position
+		context.lineTo(500+(300*i),500);
+		//draw
+		context.stroke();
+		}
+	}
+	// Place scores in it.
+	// We'll want to clear out the scores each time they get rendered, else we'll have a nightmare of ugly.
+function placeScore(canvas, message, globalTopScore, userName) 
+	{
+		var spaceSize = "      ";
+		// Clears the rectangle each time at (x= 501, y=1) with a width of 298 pixels and a height of 498 (so as to not overwrite the line).
+		// The width is the area of the box, the height is what it contains.)
+    context.clearRect(501, 1, 298, 498);
+    context.font = "18pt Impact";
+    context.fillStyle = 'black';
+		context.textBaseline = "top";
+		// This states the username and score. Might be a better idea to replace with an image.topTen[b][
+		// Sets a consistent space size based off of the first score.
+
+		context.fillText("NAME"+ spaceSize +"SCORE", 500, 5);
+		// This is for the newest score.
+///// SET THE SPACING EQUAL TO 12 SPACES MINUS THE LENGTH OF THE USERNAME.
+		// Starts at the beginning of the string. Takes the amount of spaces and chops it off by the length of the username.
+		context.fillText( userName + spaceSize + globalTopScore, 500, 30);
+		// This is for displaying the zeroth score.
+		context.fillText( localStorage.getItem("zerothName") + spaceSize + localStorage.getItem("zerothScore"), 500, 60);
+		// This is for displaying the first score.
+		context.fillText( localStorage.getItem("firstName") + spaceSize + localStorage.getItem("firstScore"), 500, 90);
+		// This is for displaying the second score.
+		context.fillText( localStorage.getItem("secondName") + spaceSize + localStorage.getItem("secondScore"), 500, 120);
+		// This is for displaying the third score.
+		context.fillText( localStorage.getItem("thirdName") + spaceSize + localStorage.getItem("thirdScore"), 500, 150);
+		// This is for displaying the fourth score.
+		context.fillText( localStorage.getItem("fourthName") + spaceSize + localStorage.getItem("fourthScore"), 500, 180);
+		// This is for displaying the fifth score.
+		context.fillText( localStorage.getItem("fifthName") + spaceSize + localStorage.getItem("fifthScore"), 500, 210);
+		// This is for displaying the sixth score.
+		context.fillText( localStorage.getItem("sixthName") + spaceSize + localStorage.getItem("sixthScore"), 500, 240);
+		// This is for displaying the seventh score.
+		context.fillText( localStorage.getItem("seventhName") + spaceSize + localStorage.getItem("seventhScore"), 500, 270);
+		// This is for displaying the eighth score.
+		context.fillText( localStorage.getItem("eighthName") + spaceSize + localStorage.getItem("eighthScore"), 500, 300);
+		// This is for displaying the ninth score.
+		context.fillText( localStorage.getItem("ninthName") + spaceSize + localStorage.getItem("ninthScore"), 500, 330);
+		// This is for displaying the tenth score.
+		context.fillText( localStorage.getItem("tenthName") + spaceSize + localStorage.getItem("tenthScore"), 500, 360);
+	}	
+
+function saveScore(globalTopScore, userName)
+	// At the conclusion of the game, save the globalTopScore and userName to be used in the next session.	
+	{
+	// At the conclusion of the game, save the globalTopScore and userName to be used in the next session.
+	// null score
+	// Initializes the variable by setting it to 	"nothing".
+	var game = localStorage.getItem("gamestate") || 0;
+
+	// Sets the gamestate, on the condition that there is no gameState.
+	if(game == "nothing" || game == 0)
+	{
+	localStorage.setItem("zerothScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("zerothName", userName);
+	// Set the gameState to firstGame if there are no inputs yet.
+	game = localStorage.setItem("gamestate",1);
+	}
+
+
+	// If the first game is equal to null (ie, nothing stored).
+	else if(game == 1)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("firstScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("firstName", userName);
+	// Sets game[0] equal to "secondGame"
+ 	localStorage.setItem("gamestate", 2);
+	}
+
+	//If the above ran, it would've saved into game[0] "secondGame".
+	else if(game == 2)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("secondScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("secondName", userName);
+	// Sets game[0] to "thirdGame".
+	localStorage.setItem("gamestate", 3);
+	}
+	else if(game == 3)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("thirdScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("thirdName", userName);
+	// Sets game[0] to "thirdGame".topTen[b][
+	localStorage.setItem("gamestate", 4);
+	}
+	else if(game == 4)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("fourthScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("fourthName", userName);
+	// Sets game[0] to "thirdGame".
+	localStorage.setItem("gamestate", 5);
+	}
+	else if(game == 5)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("fifthScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("fifthName", userName);
+	// Sets game[0] to "thirdGame".
+	localStorage.setItem("gamestate", 6);
+	}
+	else if(game == 6)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("sixthScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("sixthName", userName);
+	// Sets game[0] to "thirdGame".
+	localStorage.setItem("gamestate", 7);
+	}
+	else if(game == 7)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("seventhScore", globalTopScore);
+	// Sets the current username into "firstNametopTen[b][".
+	localStorage.setItem("seventhName", userName);
+	// Sets game[0] to "thirdGame".
+	localStorage.setItem("gamestate", 8);
+	}
+	else if(game == 8)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("eighthScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("eighthName", userName);
+	// Sets game[0] to "thirdGame".
+	localStorage.setItem("gamestate", 9);
+	}
+	else if(game == 9)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("ninthScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("ninthName", userName);
+	// Sets game[0] to "thirdGame".
+	localStorage.setItem("gamestate", 10);
+	}
+
+	else if(game >= 9)
+	{
+	// Sets the current global top score into "firstScore".
+	if (globalTopScore > localStorage.getItem ("tenthScore"))
+	{
+	localStorage.setItem("tenthScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("tenthName", userName);
+	// Sets game[0] to "thirdGame".
+	localStorage.setItem("gamestate", 10);
+	}
+	}
+	
+/*	else if(game >= 4)
+	{
+	// Sets the current global top score into "firstScore".
+	localStorage.setItem("thirdScore", globalTopScore);
+	// Sets the current username into "firstName".
+	localStorage.setItem("thirdName", userName);
+	//
+	var poop = localStorage.getItem("gamestate");
+
+		if(globalTopScore > poop)
+		{
+		// Sets game[0] to the first score.
+		poop 
+		localStorage.setItem("gamestate", poop);
+		}*/
+	}
+
+
+
+function sortScores()
+{
+	// Names
+	topTen[9][0] = localStorage.getItem("firstName");
+	console.log (topTen[9][0] + "[9][0]");
+	topTen[8][0] = localStorage.getItem("secondName");
+console.log (topTen[8][0] + "[8][0]");
+	topTen[7][0] = localStorage.getItem("thirdName");
+console.log (topTen[7][0] + "[7][0]");
+	topTen[6][0] = localStorage.getItem("fourthName");
+console.log (topTen[6][0] + "[6][0]");
+	topTen[5][0] = localStorage.getItem("fifthName");
+console.log (topTen[5][0] + "[5][0]");
+	topTen[4][0] = localStorage.getItem("sixthName");
+console.log (topTen[4][0] + "[4][0]");
+	topTen[3][0] = localStorage.getItem("seventhName");
+console.log (topTen[3][0] + "[3][0]");
+	topTen[2][0] = localStorage.getItem("eighthName");
+console.log (topTen[2][0] + "[2][0]");
+	topTen[1][0] = localStorage.getItem("ninthName");
+console.log (topTen[1][0] + "[1][0]");
+	topTen[0][0] = localStorage.getItem("tenthName");
+console.log (topTen[0][0] + "[0][0]");
+	// Scores
+	topTen[9][1] = parseInt(localStorage.getItem("firstScore"));
+console.log (topTen[9][1] + "[9][1]");
+	topTen[8][1] = parseInt(localStorage.getItem("secondScore"));
+console.log (topTen[8][1] + "[8][1]");
+	topTen[7][1] = parseInt(localStorage.getItem("thirdScore"));
+console.log (topTen[7][1] + "[7][1]");
+	topTen[6][1] = parseInt(localStorage.getItem("fourthScore"));
+console.log (topTen[6][1] + "[6][1]");
+	topTen[5][1] = parseInt(localStorage.getItem("fifthScore"));
+console.log (topTen[5][1] + "[5][1]");
+	topTen[4][1] = parseInt(localStorage.getItem("sixthScore"));
+console.log (topTen[4][1] + "[4][1]");
+	topTen[3][1] = parseInt(localStorage.getItem("seventhScore"));
+console.log (topTen[3][1] + "[3][1]");
+	topTen[2][1] = parseInt(localStorage.getItem("eighthScore"));
+console.log (topTen[2][1] + "[2][1]");
+	topTen[1][1] = parseInt(localStorage.getItem("ninthScore"));
+console.log (topTen[1][1] + "[1][1]");
+	topTen[0][1] = parseInt(localStorage.getItem("tenthScore"));
+console.log (topTen[0][1] + "[0][1]");
+
+
+console.log (topTen[6][1] + "[6][1]");
+console.log (topTen[5][1] + "[5][1]");
+
+/*for (i=0; i<10; i++)
+	{
+	if (topTen[i][1] === NaN)
+		{
+		topTen[i][1] = 0;
+		}
+	}*/
+
+	for(i=0; i<10; i++)
+		{
+		for (b=0; b<9; b++)
+			{
+			if (topTen[b][1] > topTen[(b+1)][1])
+				{
+				var temp = 0;
+				var nameTemp = 0;
+				temp = topTen[(b+1)][1];
+				nameTemp = topTen[(b+1)][0];
+				topTen[(b+1)][1] = topTen[b][1];
+				topTen[(b+1)][0] = topTen[b][0];
+				topTen[b][1] = temp;
+				topTen[b][0] = nameTemp;
+				}
+			}
+		}
+
+	localStorage.setItem ("firstName" , topTen[9][0]);
+	localStorage.setItem ("secondName" , topTen[8][0]);
+	localStorage.setItem ("thirdName" , topTen[7][0]);
+	localStorage.setItem ("fourthName" , topTen[6][0]);
+	localStorage.setItem ("fifthName" , topTen[5][0]);
+	localStorage.setItem ("sixthName" , topTen[4][0]);
+	localStorage.setItem ("seventhName" , topTen[3][0]);
+	localStorage.setItem ("eighthName" , topTen[2][0]);
+	localStorage.setItem ("ninthName" , topTen[1][0]);
+	localStorage.setItem ("tenthName" , topTen[0][0]);
+
+	localStorage.setItem ("firstScore" , topTen[9][1]);
+	localStorage.setItem ("secondScore" , topTen[8][1]);
+	localStorage.setItem ("thirdScore" , topTen[7][1]);
+	localStorage.setItem ("fourthScore" , topTen[6][1]);
+	localStorage.setItem ("fifthScore" , topTen[5][1]);
+	localStorage.setItem ("sixthScore" , topTen[4][1]);
+	localStorage.setItem ("seventhScore" , topTen[3][1]);
+	localStorage.setItem ("eighthScore" , topTen[2][1]);
+	localStorage.setItem ("ninthScore" , topTen[1][1]);
+	localStorage.setItem ("tenthScore" , topTen[0][1]);
+}
+
+function noNullNames()
+{
+	// For Names
+
+	// For Scores
+if(localStorage.getItem("firstScore") == NaN)
+	{
+	localStorage.setItem("firstScore", 0);
+	}
+if(localStorage.getItem("secondScore") == NaN)
+	{
+	localStorage.setItem("secondScore", 0);
+	}
+if(localStorage.getItem("thirdScore") == NaN)
+	{
+	localStorage.setItem("thirdScore", 0);
+	}
+if(localStorage.getItem("fourthScore") == NaN)
+	{
+	localStorage.setItem("fourthScore", 0);
+	}
+if(localStorage.getItem("fifthScore") == NaN)
+	{
+	localStorage.setItem("fifthScore", 0);
+	}
+if(localStorage.getItem("sixthScore") == NaN)
+	{
+	localStorage.setItem("sixthScore", 0);
+	}
+if(localStorage.getItem("seventhScore") == NaN)
+	{
+	localStorage.setItem("seventhScore", 0);
+	}
+if(localStorage.getItem("eighthScore") == NaN)
+	{
+	localStorage.setItem("eighthScore", 0);
+	}
+if(localStorage.getItem("ninthScore") == NaN)
+	{
+	localStorage.setItem("ninthScore", 0);
+	}
+if(localStorage.getItem("tenthScore") == NaN)
+	{
+	localStorage.setItem("tenthScore", 0);
+	}
+}
+
+				
+			// Sort the scoreboard.
+/*************************************************************/
+
+
+
+
+
+    </script>   
+  </body>
+</html>
